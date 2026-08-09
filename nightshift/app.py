@@ -76,7 +76,7 @@ def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
 
 
 if __name__ == "__main__":
-    secret = os.getenv("WEBHOOK_SECRET", "")
+    secret = os.getenv("WEBHOOK_SECRET", "").strip()
     if not secret:
         raise SystemExit("WEBHOOK_SECRET is required.")
     port = int(os.getenv("PORT", "8080"))
