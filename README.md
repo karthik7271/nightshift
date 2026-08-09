@@ -30,6 +30,8 @@ The workflow is intentionally independent of vendor SDKs. Production adapters wi
 - Pub/Sub dispatch and Cloud Run worker execution
 - Secret Manager-backed credentials
 
+Deployment configuration for the `ailooks-sandbox` Google Cloud project is in [infra/](infra/README.md). Bootstrap and deployment scripts are intentionally reviewable and do not run automatically.
+
 ## GitHub App configuration
 
 NightShift authenticates as a GitHub App installation, not as a personal access token. Set `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_PRIVATE_KEY_PATH`; the installation ID is taken from each signed GitHub App webhook payload. Install `cryptography` with `pip install '.[github-app]'` when enabling the production adapter.
