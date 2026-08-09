@@ -67,3 +67,12 @@ class WebhookTests(unittest.TestCase):
         status, response = self._call(json.loads(body), event="check_run")
         self.assertEqual("202 Accepted", status)
         self.assertEqual(JobStatus.COMPLETED, self.workflow.store.get(self.issue.delivery_id).status)
+
+    def test_exposes_empty_metrics(self) -> None:
+        result = {}
+        response = self.app({
+            "PATH_INFO": "/api/metrics", "REQUEST_METHOD": "GET",
+            "CONTENT_LENGTH": "0", "wsgi.input": io.BytesIO(),
+        }, lambda status, headers: result.setdefault("status", status))
+        self.assertEqual("200 OK", result["status"])
+        self.assertIsNone(json.loads(b"".join(response))["acceptance_rate"])

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
@@ -52,6 +53,7 @@ class PatchPlan:
     test_command: str
     confidence: float
     risks: tuple[str, ...] = ()
+    context_files: tuple[str, ...] = ()
 
 
 @dataclass
@@ -74,4 +76,8 @@ class Job:
     audit_events: list[dict[str, Any]] = field(default_factory=list)
 
     def record(self, event: str, **details: Any) -> None:
-        self.audit_events.append({"event": event, **details})
+        self.audit_events.append({
+            "event": event,
+            "occurred_at": datetime.now(timezone.utc).isoformat(),
+            **details,
+        })

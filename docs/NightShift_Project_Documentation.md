@@ -6,7 +6,7 @@
 
 NightShift is an event-driven autonomous software-maintenance agent for one approved GitHub repository. It listens for GitHub issue-label events, checks whether the issue is safe to automate, uses Gemini 3 Flash on Vertex AI to produce a constrained plan and patch, and opens a draft pull request only after deterministic guardrails approve the action.
 
-The product is deliberately designed around **bounded autonomy**. The agent may act quickly on small maintenance work, but it cannot merge code, edit CI, change infrastructure or dependencies, touch sensitive paths, or operate outside the configured repository. Every workflow transition is persisted as an audit event and surfaced in the live dashboard.
+The product is deliberately designed around **bounded autonomy**. The agent may act quickly on small maintenance work, but it cannot merge code, edit CI, change infrastructure or dependencies, touch sensitive paths, or operate outside the configured repository. Before Gemini plans a change, NightShift retrieves no more than six eligible files and 18,000 characters of source evidence. Every workflow transition is persisted as an audit event and surfaced in the live dashboard alongside acceptance, CI-pass and time-to-draft-PR metrics.
 
 ### Problem addressed
 
@@ -23,8 +23,9 @@ Small bug fixes often wait behind higher-priority feature work even when the fix
 1. A labelled GitHub issue enters the system automatically.
 2. Unsafe or out-of-scope work is rejected before any repository mutation.
 3. A qualifying issue produces at most one isolated, bounded draft PR.
-4. CI status is reflected in the agent job without any auto-merge path.
-5. A dashboard makes the decision history visible in near real time.
+4. Each draft PR explains the approved plan, reviewed context, test command and risk assessment.
+5. CI status is reflected in the agent job without any auto-merge path.
+6. A dashboard makes decisions and operational metrics visible in near real time.
 
 ---
 
@@ -259,6 +260,7 @@ stateDiagram-v2
 | Least-privilege authentication | GitHub App installation tokens are short-lived and cached only in memory. | Avoids personal access tokens and long-lived repository credentials. |
 | File boundaries | Only `nightshift/`, `tests/`, or `src/`; maximum three files. | Keeps each autonomous change small and reviewable. |
 | Sensitive-path denial | Auth, secrets, credentials, migrations, dependencies, CI, Docker and infrastructure paths are rejected. | Requires human review for high-impact areas. |
+| Bounded context retrieval | At most 6 policy-eligible files and 18,000 characters are ranked and read before planning. | Gives Gemini useful code evidence without broad repository exposure. |
 | Structured model output | Gemini is instructed to emit JSON; deterministic code validates it. | The model proposes, while code decides what may execute. |
 | Human merge gate | The only PR method sets `draft: true`; no merge operation exists in the repository adapter. | Eliminates autonomous deployment or merge authority. |
 | Durable audit trail | Firestore persists status, PR metadata, commit SHA and timestamped events. | Makes decisions explainable and recoverable. |
@@ -267,7 +269,7 @@ stateDiagram-v2
 
 | NightShift may do | NightShift may not do |
 |---|---|
-| Read a bounded repository tree and existing approved files | Merge, approve, or close pull requests |
+| Read a ranked, bounded set of policy-eligible repository files | Merge, approve, or close pull requests |
 | Create a `nightshift/…` branch | Write to `main` or another arbitrary branch |
 | Replace content in the approved existing files | Modify dependencies, CI, Docker, infrastructure or credentials |
 | Open a draft PR | Select more than three files or operate outside allowlisted roots |
@@ -295,6 +297,7 @@ stateDiagram-v2
 |---|---:|---|
 | `/` | GET | Dashboard that renders the latest job and audit timeline. |
 | `/api/jobs` | GET | JSON feed of recent durable job state for the dashboard. |
+| `/api/metrics` | GET | Acceptance rate, CI pass rate and average time-to-draft-PR derived from audit events. |
 | `/webhooks/github` | POST | HMAC-validated GitHub `issues` and `check_run` receiver. |
 | `/tasks/pubsub` | POST | Pub/Sub push endpoint that resumes a job by ID. |
 
@@ -341,8 +344,7 @@ The deployment script sets the approved repository, Google Cloud project, GitHub
 ## 9. Future extensions
 
 - Add OIDC validation for Pub/Sub push requests and authenticated dashboard access for production multi-user deployments.
-- Support richer repository context through code search while preserving the strict file-scope policy.
-- Add PR comments containing a concise explanation of the plan, risk assessment and validation command.
+- Extend bounded retrieval with repository-native code search while preserving the six-file and character caps.
+- Add PR comments that mirror the existing draft-PR explanation for reviewers who prefer inline GitHub discussion.
 - Introduce human approval queues for higher-risk changes rather than rejecting them outright.
-- Add metrics for acceptance rate, time-to-draft-PR, CI pass rate and human-merge rate.
-
+- Add human-merge rate and time-to-merge to the existing acceptance, CI-pass and time-to-draft-PR telemetry.

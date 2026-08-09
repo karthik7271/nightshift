@@ -19,6 +19,7 @@ from .github_app import GitHubAppAuthenticator
 from .github_repository import GitHubRepositoryWorkspace
 from .execution import GitHubPatchExecutor
 from .gemini import GeminiPatchAuthor
+from .metrics import workflow_metrics
 
 
 def make_workflow() -> NightShiftWorkflow:
@@ -59,6 +60,10 @@ def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
                         "events": j.audit_events} for j in jobs]
             start_response("200 OK", [("Content-Type", "application/json")])
             return [json.dumps(payload, default=str).encode()]
+        if environ.get("PATH_INFO") == "/api/metrics" and environ.get("REQUEST_METHOD") == "GET":
+            jobs = getattr(workflow.store, "recent", lambda limit=200: [])(200)
+            start_response("200 OK", [("Content-Type", "application/json")])
+            return [json.dumps(workflow_metrics(jobs)).encode()]
         if environ.get("PATH_INFO") == "/" and environ.get("REQUEST_METHOD") == "GET":
             start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
             return [PAGE.encode()]

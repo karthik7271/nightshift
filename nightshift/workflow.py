@@ -59,6 +59,7 @@ class NightShiftWorkflow:
 
         job.status = JobStatus.GATHERING_CONTEXT
         job.record("context_gathering_started")
+        job.record("policy_accepted", reason=decision.reason)
         job.status = JobStatus.PLANNING
         try:
             plan = self.planner.plan(issue)
@@ -68,7 +69,8 @@ class NightShiftWorkflow:
             self.store.save(job)
             return job
         job.plan = plan
-        job.record("plan_created", expected_files=list(plan.expected_files), confidence=plan.confidence)
+        job.record("plan_created", expected_files=list(plan.expected_files), context_files=list(plan.context_files),
+                   confidence=plan.confidence)
         decision = self.policy.validate_plan(plan)
         if not decision.allowed:
             job.status = JobStatus.NEEDS_HUMAN_HELP

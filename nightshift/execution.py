@@ -47,14 +47,27 @@ class GitHubPatchExecutor:
 
     @staticmethod
     def _pr_body(job: Job) -> str:
+        if not job.plan:
+            raise ValueError("A draft PR explanation requires an approved plan.")
+        risks = "\n".join(f"- {risk}" for risk in job.plan.risks) or "- No additional risks identified by the planner."
+        context = ", ".join(job.plan.context_files) or "Only the approved change files"
         return f"""## NightShift summary
 
 Autonomous bounded fix from issue #{job.issue_number}.
 
+### Why NightShift acted
+
+{job.plan.summary}
+
 ### Validation
 - Scope confidence: {job.plan.confidence:.0%}
+- Suggested verification: `{job.plan.test_command}`
 - Changed files: {', '.join(job.plan.expected_files)}
+- Bounded context reviewed: {context}
 - Human merge required
+
+### Planner risk assessment
+{risks}
 
 ### Safety
 - No dependency, CI, infrastructure, or authentication changes

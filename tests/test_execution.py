@@ -27,3 +27,6 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(JobStatus.WAITING_FOR_CI, executor.execute(issue, job).status)
         self.assertTrue(workspace.created and workspace.writes and workspace.pr)
         self.assertEqual("https://example/pr/8", job.pr_url)
+        body = executor._pr_body(job)
+        self.assertIn("Why NightShift acted", body)
+        self.assertIn("Suggested verification", body)

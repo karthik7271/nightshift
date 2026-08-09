@@ -18,7 +18,12 @@ def _to_document(job: Job) -> dict:
 
 def _from_document(data: dict) -> Job:
     plan_data = data.get("plan")
-    plan = PatchPlan(**plan_data) if plan_data else None
+    plan = (PatchPlan(**{
+        **plan_data,
+        "expected_files": tuple(plan_data.get("expected_files", ())),
+        "risks": tuple(plan_data.get("risks", ())),
+        "context_files": tuple(plan_data.get("context_files", ())),
+    }) if plan_data else None)
     return Job(**{**data, "status": JobStatus(data["status"]), "plan": plan})
 
 
