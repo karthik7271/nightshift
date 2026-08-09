@@ -20,13 +20,25 @@ class NightShiftWorkflow:
         self.planner = planner
 
     def receive_issue_label(self, issue: IssueRef) -> tuple[Job, bool]:
-        job = Job(id=issue.delivery_id, repository=issue.repository, issue_number=issue.issue_number)
+        job = Job(id=issue.delivery_id, repository=issue.repository, issue_number=issue.issue_number,
+                  issue_labels=tuple(sorted(issue.labels)), issue_title=issue.title, issue_body=issue.body,
+                  installation_id=issue.installation_id)
         job, created = self.store.create_if_absent(job)
         if created:
             job.record("webhook_received", repository=issue.repository, issue_number=issue.issue_number)
             self.store.save(job)
             self.dispatcher.dispatch(job.id)
         return job, created
+
+    def process_job(self, job_id: str) -> Job:
+        job = self.store.get(job_id)
+        if job is None:
+            raise KeyError(f"Unknown NightShift job: {job_id}")
+        return self.process(IssueRef(
+            delivery_id=job.id, repository=job.repository, issue_number=job.issue_number,
+            labels=frozenset(job.issue_labels), title=job.issue_title, body=job.issue_body,
+            installation_id=job.installation_id,
+        ))
 
     def process(self, issue: IssueRef) -> Job:
         job = self.store.get(issue.delivery_id)
@@ -62,4 +74,3 @@ class NightShiftWorkflow:
             job.record("patch_authorized", branch_name=job.branch_name)
         self.store.save(job)
         return job
-

@@ -59,6 +59,10 @@ class Job:
     id: str
     repository: str
     issue_number: int
+    issue_labels: tuple[str, ...] = ()
+    issue_title: str = ""
+    issue_body: str = ""
+    installation_id: int | None = None
     status: JobStatus = JobStatus.RECEIVED
     branch_name: str | None = None
     attempt: int = 0

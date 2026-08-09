@@ -12,6 +12,7 @@ from .domain import IssueRef
 from .policy import SafetyPolicy
 from .store import InMemoryDispatcher, InMemoryJobStore
 from .workflow import NightShiftWorkflow
+from .cloud import pubsub_job_id
 
 
 def make_workflow() -> NightShiftWorkflow:
@@ -33,6 +34,15 @@ def _valid_signature(secret: str, body: bytes, signature: str | None) -> bool:
 
 def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
     def app(environ: dict, start_response: Callable):
+        if environ.get("PATH_INFO") == "/tasks/pubsub" and environ.get("REQUEST_METHOD") == "POST":
+            length = int(environ.get("CONTENT_LENGTH") or 0)
+            try:
+                job = workflow.process_job(pubsub_job_id(json.loads(environ["wsgi.input"].read(length))))
+            except (KeyError, ValueError, json.JSONDecodeError) as error:
+                start_response("400 Bad Request", [("Content-Type", "application/json")])
+                return [json.dumps({"error": str(error)}).encode()]
+            start_response("200 OK", [("Content-Type", "application/json")])
+            return [json.dumps({"job_id": job.id, "status": job.status}).encode()]
         if environ.get("PATH_INFO") != "/webhooks/github" or environ.get("REQUEST_METHOD") != "POST":
             start_response("404 Not Found", [("Content-Type", "application/json")])
             return [b'{"error":"not found"}']

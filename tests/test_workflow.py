@@ -31,9 +31,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(JobStatus.PATCHING, job.status)
         self.assertEqual("nightshift/issue-42-empty-search-crashes", job.branch_name)
 
+    def test_worker_can_resume_job_by_id(self) -> None:
+        self.workflow.receive_issue_label(self.issue)
+        self.assertEqual(JobStatus.PATCHING, self.workflow.process_job("delivery-1").status)
+
     def test_ineligible_issue_is_rejected(self) -> None:
         issue = IssueRef("delivery-2", "demo-org/demo-repo", 43, frozenset({"bug"}), "Bug", "")
         self.workflow.receive_issue_label(issue)
         job = self.workflow.process(issue)
         self.assertEqual(JobStatus.REJECTED_BY_POLICY, job.status)
-
