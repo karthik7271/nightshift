@@ -1,0 +1,32 @@
+from __future__ import annotations
+
+from .domain import Job
+
+
+class InMemoryJobStore:
+    """Local adapter. A Firestore adapter will satisfy the same interface in production."""
+
+    def __init__(self) -> None:
+        self.jobs: dict[str, Job] = {}
+
+    def create_if_absent(self, job: Job) -> tuple[Job, bool]:
+        existing = self.jobs.get(job.id)
+        if existing is not None:
+            return existing, False
+        self.jobs[job.id] = job
+        return job, True
+
+    def save(self, job: Job) -> None:
+        self.jobs[job.id] = job
+
+    def get(self, job_id: str) -> Job | None:
+        return self.jobs.get(job_id)
+
+
+class InMemoryDispatcher:
+    def __init__(self) -> None:
+        self.dispatched: list[str] = []
+
+    def dispatch(self, job_id: str) -> None:
+        self.dispatched.append(job_id)
+

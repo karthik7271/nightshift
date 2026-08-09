@@ -1,0 +1,9 @@
+[project]
+name = "nightshift"
+version = "0.1.0"
+description = "Bounded autonomous maintainer that turns approved GitHub issues into tested draft pull requests."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
