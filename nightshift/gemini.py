@@ -7,7 +7,7 @@ from .execution import FileChange
 class GeminiPatchAuthor:
     def __init__(self, project: str, location: str = "us-central1", model: str | None = None) -> None:
         self.project, self.location = project, location
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     def author(self, issue, files, expected_files):
         try:

@@ -23,7 +23,7 @@ class GeminiPlanner:
 
     def __init__(self, project: str, workspace_factory, location: str = "us-central1", model: str | None = None) -> None:
         self.project, self.workspace_factory, self.location = project, workspace_factory, location
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     def plan(self, issue: IssueRef) -> PatchPlan:
         if not issue.installation_id:
