@@ -7,7 +7,7 @@ from .domain import IssueRef, PatchPlan
 
 
 class DeterministicPlanner:
-    """Local development adapter; replace with a Gemini + ADK adapter in production."""
+    """Predictable local-development planner used without cloud credentials."""
 
     def plan(self, issue: IssueRef) -> PatchPlan:
         return PatchPlan(

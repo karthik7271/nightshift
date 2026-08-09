@@ -44,7 +44,7 @@ def build_planning_agent():
     return Agent(
         name="nightshift_planner",
         model=Gemini(
-            model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
+            model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
             retry_options=types.HttpRetryOptions(attempts=3),
         ),
         instruction=PLANNER_INSTRUCTION,

@@ -5,8 +5,8 @@ Default region: `us-central1`
 
 ## Resources
 
-- Cloud Run: signed GitHub webhook receiver and later agent worker
-- Vertex AI: Gemini planning model through Google ADK
+- Cloud Run: signed GitHub webhook receiver and asynchronous agent worker
+- Vertex AI: Gemini 3 Flash planning and patch authoring through the Google Gen AI SDK
 - Firestore: durable workflow jobs and audit events
 - Pub/Sub: asynchronous job dispatch and status events
 - Secret Manager: GitHub App private key and webhook secret

@@ -2,14 +2,16 @@
 
 NightShift is a bounded autonomous maintenance engineer. When a GitHub issue is labelled `agent-ready` and `bug`, it qualifies the work, builds a constrained patch plan, and records a durable job for an agent worker to complete. It will only ever open a draft PR; merge authority stays with a human.
 
-## Current vertical slice
+## What is live
 
 - GitHub webhook HMAC verification
 - Idempotent issue-job creation
 - Explicit policy gate for labels, repository, paths, and risky files
-- Durable workflow state model with an in-memory adapter for local development
-- GitHub and planner seams, with deterministic local adapters for verification
-- A minimal WSGI webhook endpoint suitable for a Cloud Run container
+- Firestore-backed jobs and Pub/Sub worker dispatch
+- GitHub App installation tokens, constrained repository reads/writes, and draft PR creation
+- Gemini 3 Flash planning and full-file patch authoring through Vertex AI
+- Check Run webhook handling that records CI outcomes without granting merge authority
+- A live Cloud Run dashboard at the deployed service URL
 
 ## Run locally
 
@@ -20,18 +22,12 @@ WEBHOOK_SECRET=dev-secret python -m nightshift.app
 
 Then post a signed `issues.labeled` GitHub webhook to `http://localhost:8080/webhooks/github`.
 
-## Required cloud integrations (next)
+## Architecture
 
-The workflow is intentionally independent of vendor SDKs. Production adapters will provide:
+GitHub delivers signed `issues.labeled` and `check_run` webhooks to Cloud Run. Eligible jobs are persisted in Firestore and dispatched through Pub/Sub. A Gemini 3 Flash planner may only select existing files inside `nightshift/`, `tests/`, or `src/`; a deterministic policy enforces confidence, file-count, path, and repository restrictions before the patch executor can create a branch or draft PR. CI outcomes are attached to the corresponding job, and all merges remain human-only.
 
-- GitHub App authentication and GitHub REST actions
-- Gemini via Vertex AI and Google ADK
-- Firestore job storage
-- Pub/Sub dispatch and Cloud Run worker execution
-- Secret Manager-backed credentials
-
-Deployment configuration for the `ailooks-sandbox` Google Cloud project is in [infra/](infra/README.md). Bootstrap and deployment scripts are intentionally reviewable and do not run automatically.
+Deployment configuration for the `ailooks-sandbox` Google Cloud project is in [infra/](infra/README.md).
 
 ## GitHub App configuration
 
-NightShift authenticates as a GitHub App installation, not as a personal access token. Set `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_PRIVATE_KEY_PATH`; the installation ID is taken from each signed GitHub App webhook payload. Install `cryptography` with `pip install '.[github-app]'` when enabling the production adapter.
+NightShift authenticates as a GitHub App installation, not as a personal access token. Configure `Issues` and `Check run` webhook events, and grant only the repository permissions needed for issue reads, contents writes, and pull-request writes. Set `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_PRIVATE_KEY_PATH`; the installation ID is taken from each signed GitHub App webhook payload. Install `cryptography` with `pip install '.[github-app]'` when enabling the production adapter.
