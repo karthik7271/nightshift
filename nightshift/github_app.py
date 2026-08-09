@@ -13,6 +13,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -61,6 +62,30 @@ class GitHubAppAuthenticator:
         self._tokens[installation_id] = minted
         return minted.token
 
+    def installation_id_for(self, repository: str) -> int:
+        """Return the installation that grants this App access to one repository."""
+        if "/" not in repository:
+            raise GitHubAppConfigurationError("Repository must use owner/name format.")
+        try:
+            payload = self._request_json(
+                f"/repos/{repository}/installation",
+                method="GET",
+                token=self._app_jwt(),
+            )
+        except HTTPError as error:
+            if error.code == 404:
+                error.close()
+                raise GitHubAppConfigurationError(
+                    f"The GitHub App is not installed on {repository}."
+                ) from error
+            raise
+        try:
+            return int(payload["id"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise GitHubAppConfigurationError(
+                f"GitHub did not return an installation for {repository}."
+            ) from error
+
     def _app_jwt(self) -> str:
         if not self.private_key_path.exists():
             raise GitHubAppConfigurationError(
@@ -81,11 +106,13 @@ class GitHubAppAuthenticator:
         signature = private_key.sign(message, padding.PKCS1v15(), hashes.SHA256())
         return f"{header}.{claims}.{_base64url(signature)}"
 
-    def _request_json(self, path: str, method: str, token: str, data: dict[str, object]) -> dict[str, object]:
+    def _request_json(
+        self, path: str, method: str, token: str, data: dict[str, object] | None = None
+    ) -> dict[str, object]:
         request = Request(
             f"{self.api_url}{path}",
             method=method,
-            data=json.dumps(data).encode(),
+            data=json.dumps(data).encode() if data is not None else None,
             headers={
                 "Accept": "application/vnd.github+json",
                 "Authorization": f"Bearer {token}",
