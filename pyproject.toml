@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 
 [project.optional-dependencies]
 github-app = ["cryptography>=42"]
+agent = ["google-adk[gcp]>=2.0.0,<3.0.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

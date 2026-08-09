@@ -1,0 +1,5 @@
+name: nightshift
+agent_directory: nightshift
+create_params:
+  deployment_target: cloud_run
+  session_type: in_memory
