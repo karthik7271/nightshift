@@ -36,6 +36,7 @@ class IssueRef:
     labels: frozenset[str]
     title: str
     body: str
+    installation_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -67,4 +68,3 @@ class Job:
 
     def record(self, event: str, **details: Any) -> None:
         self.audit_events.append({"event": event, **details})
-

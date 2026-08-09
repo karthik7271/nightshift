@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Bounded autonomous maintainer that turns approved GitHub issues into tested draft pull requests."
 requires-python = ">=3.11"
 
+[project.optional-dependencies]
+github-app = ["cryptography>=42"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

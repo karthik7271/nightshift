@@ -30,3 +30,6 @@ The workflow is intentionally independent of vendor SDKs. Production adapters wi
 - Pub/Sub dispatch and Cloud Run worker execution
 - Secret Manager-backed credentials
 
+## GitHub App configuration
+
+NightShift authenticates as a GitHub App installation, not as a personal access token. Set `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_PRIVATE_KEY_PATH`; the installation ID is taken from each signed GitHub App webhook payload. Install `cryptography` with `pip install '.[github-app]'` when enabling the production adapter.

@@ -56,6 +56,7 @@ def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
             labels=labels,
             title=payload["issue"]["title"],
             body=payload["issue"].get("body") or "",
+            installation_id=payload.get("installation", {}).get("id"),
         )
         job, created = workflow.receive_issue_label(issue)
         response = json.dumps({"job_id": job.id, "created": created, "status": job.status}).encode()
@@ -72,4 +73,3 @@ if __name__ == "__main__":
     with make_server("0.0.0.0", port, create_app(make_workflow(), secret)) as server:
         print(f"NightShift webhook receiver listening on :{port}")
         server.serve_forever()
-
