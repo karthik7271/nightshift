@@ -13,10 +13,19 @@ from .policy import SafetyPolicy
 from .store import InMemoryDispatcher, InMemoryJobStore
 from .workflow import NightShiftWorkflow
 from .cloud import pubsub_job_id
+from .cloud import FirestoreJobStore, PubSubDispatcher
 
 
 def make_workflow() -> NightShiftWorkflow:
     repository = os.getenv("APPROVED_REPOSITORY", "demo-org/demo-repo")
+    if os.getenv("USE_GOOGLE_CLOUD") == "1":
+        from google.cloud import firestore, pubsub_v1
+        project = os.environ["GOOGLE_CLOUD_PROJECT"]
+        return NightShiftWorkflow(
+            store=FirestoreJobStore(firestore.Client(project=project)),
+            dispatcher=PubSubDispatcher(pubsub_v1.PublisherClient(), f"projects/{project}/topics/nightshift-jobs"),
+            policy=SafetyPolicy(approved_repositories=frozenset({repository})), planner=DeterministicPlanner(),
+        )
     return NightShiftWorkflow(
         store=InMemoryJobStore(),
         dispatcher=InMemoryDispatcher(),
