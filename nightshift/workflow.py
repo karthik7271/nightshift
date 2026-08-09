@@ -13,11 +13,11 @@ def branch_name(issue_number: int, title: str) -> str:
 
 
 class NightShiftWorkflow:
-    def __init__(self, store: JobStore, dispatcher: JobDispatcher, policy: SafetyPolicy, planner: PlanningAgent) -> None:
+    def __init__(self, store: JobStore, dispatcher: JobDispatcher, policy: SafetyPolicy, planner: PlanningAgent, executor=None) -> None:
         self.store = store
         self.dispatcher = dispatcher
         self.policy = policy
-        self.planner = planner
+        self.planner, self.executor = planner, executor
 
     def receive_issue_label(self, issue: IssueRef) -> tuple[Job, bool]:
         job = Job(id=issue.delivery_id, repository=issue.repository, issue_number=issue.issue_number,
@@ -72,5 +72,7 @@ class NightShiftWorkflow:
             job.status = JobStatus.PATCHING
             job.branch_name = branch_name(issue.issue_number, issue.title)
             job.record("patch_authorized", branch_name=job.branch_name)
+            if self.executor:
+                job = self.executor.execute(issue, job)
         self.store.save(job)
         return job

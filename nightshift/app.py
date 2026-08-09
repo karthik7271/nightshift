@@ -15,6 +15,10 @@ from .workflow import NightShiftWorkflow
 from .cloud import pubsub_job_id
 from .cloud import FirestoreJobStore, PubSubDispatcher
 from .ui import PAGE
+from .github_app import GitHubAppAuthenticator
+from .github_repository import GitHubRepositoryWorkspace
+from .execution import GitHubPatchExecutor
+from .gemini import GeminiPatchAuthor
 
 
 def make_workflow() -> NightShiftWorkflow:
@@ -22,10 +26,14 @@ def make_workflow() -> NightShiftWorkflow:
     if os.getenv("USE_GOOGLE_CLOUD") == "1":
         from google.cloud import firestore, pubsub_v1
         project = os.environ["GOOGLE_CLOUD_PROJECT"]
+        policy = SafetyPolicy(approved_repositories=frozenset({repository}))
+        authenticator = GitHubAppAuthenticator(os.environ["GITHUB_APP_CLIENT_ID"], os.environ["GITHUB_APP_PRIVATE_KEY_PATH"])
+        executor = GitHubPatchExecutor(policy, GeminiPatchAuthor(project),
+            lambda repo, installation: GitHubRepositoryWorkspace(repo, installation, authenticator))
         return NightShiftWorkflow(
             store=FirestoreJobStore(firestore.Client(project=project)),
             dispatcher=PubSubDispatcher(pubsub_v1.PublisherClient(), f"projects/{project}/topics/nightshift-jobs"),
-            policy=SafetyPolicy(approved_repositories=frozenset({repository})), planner=DeterministicPlanner(),
+            policy=policy, planner=DeterministicPlanner(), executor=executor,
         )
     return NightShiftWorkflow(
         store=InMemoryJobStore(),
