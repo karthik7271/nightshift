@@ -22,6 +22,9 @@ class InMemoryJobStore:
     def get(self, job_id: str) -> Job | None:
         return self.jobs.get(job_id)
 
+    def recent(self, limit: int = 20) -> list[Job]:
+        return list(self.jobs.values())[-limit:]
+
 
 class InMemoryDispatcher:
     def __init__(self) -> None:
@@ -29,4 +32,3 @@ class InMemoryDispatcher:
 
     def dispatch(self, job_id: str) -> None:
         self.dispatched.append(job_id)
-

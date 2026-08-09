@@ -40,6 +40,9 @@ class FirestoreJobStore:
         snapshot = self.collection.document(job_id).get()
         return _from_document(snapshot.to_dict()) if snapshot.exists else None
 
+    def recent(self, limit: int = 20) -> list[Job]:
+        return [_from_document(snapshot.to_dict()) for snapshot in self.collection.limit(limit).stream()]
+
 
 class PubSubDispatcher:
     def __init__(self, publisher, topic_path: str) -> None:

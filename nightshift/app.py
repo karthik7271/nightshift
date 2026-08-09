@@ -52,6 +52,12 @@ def _valid_signature(secret: str, body: bytes, signature: str | None) -> bool:
 
 def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
     def app(environ: dict, start_response: Callable):
+        if environ.get("PATH_INFO") == "/api/jobs" and environ.get("REQUEST_METHOD") == "GET":
+            jobs = getattr(workflow.store, "recent", lambda: [])()
+            payload = [{"id": j.id, "issue": j.issue_title, "number": j.issue_number,
+                        "status": j.status, "branch": j.branch_name, "events": j.audit_events} for j in jobs]
+            start_response("200 OK", [("Content-Type", "application/json")])
+            return [json.dumps(payload, default=str).encode()]
         if environ.get("PATH_INFO") == "/" and environ.get("REQUEST_METHOD") == "GET":
             start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
             return [PAGE.encode()]
