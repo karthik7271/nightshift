@@ -14,6 +14,7 @@ from .store import InMemoryDispatcher, InMemoryJobStore
 from .workflow import NightShiftWorkflow
 from .cloud import pubsub_job_id
 from .cloud import FirestoreJobStore, PubSubDispatcher
+from .ui import PAGE
 
 
 def make_workflow() -> NightShiftWorkflow:
@@ -43,6 +44,9 @@ def _valid_signature(secret: str, body: bytes, signature: str | None) -> bool:
 
 def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
     def app(environ: dict, start_response: Callable):
+        if environ.get("PATH_INFO") == "/" and environ.get("REQUEST_METHOD") == "GET":
+            start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
+            return [PAGE.encode()]
         if environ.get("PATH_INFO") == "/tasks/pubsub" and environ.get("REQUEST_METHOD") == "POST":
             length = int(environ.get("CONTENT_LENGTH") or 0)
             try:
