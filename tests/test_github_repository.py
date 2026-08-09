@@ -17,6 +17,8 @@ class FakeTransport:
         self.calls.append((method, path, token, payload))
         if path.endswith("/git/ref/heads/main"):
             return {"object": {"sha": "base-sha"}}
+        if "/git/trees/main?recursive=1" in path:
+            return {"tree": [{"path": "nightshift/app.py", "type": "blob"}, {"path": "docs", "type": "tree"}]}
         if "/contents/" in path and method == "GET":
             return {"content": base64.b64encode(b"old content").decode(), "sha": "file-sha"}
         if path.endswith("/git/refs"):
@@ -51,3 +53,6 @@ class GitHubRepositoryWorkspaceTests(unittest.TestCase):
         self.assertEqual(7, pr.number)
         self.assertTrue(self.transport.calls[-1][3]["draft"])
         self.assertRaises(ValueError, self.workspace.open_draft_pr, "main", "No", "No")
+
+    def test_lists_only_files_for_planning(self) -> None:
+        self.assertEqual(("nightshift/app.py",), self.workspace.list_files())

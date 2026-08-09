@@ -43,6 +43,10 @@ class FirestoreJobStore:
     def recent(self, limit: int = 20) -> list[Job]:
         return [_from_document(snapshot.to_dict()) for snapshot in self.collection.limit(limit).stream()]
 
+    def find_by_commit_sha(self, repository: str, commit_sha: str) -> list[Job]:
+        query = self.collection.where("repository", "==", repository).where("commit_sha", "==", commit_sha)
+        return [_from_document(snapshot.to_dict()) for snapshot in query.stream()]
+
 
 class PubSubDispatcher:
     def __init__(self, publisher, topic_path: str) -> None:

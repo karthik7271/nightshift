@@ -40,3 +40,19 @@ class WorkflowTests(unittest.TestCase):
         self.workflow.receive_issue_label(issue)
         job = self.workflow.process(issue)
         self.assertEqual(JobStatus.REJECTED_BY_POLICY, job.status)
+
+    def test_successful_ci_marks_matching_draft_complete(self) -> None:
+        self.workflow.receive_issue_label(self.issue)
+        job = self.store.get("delivery-1")
+        job.status, job.commit_sha = JobStatus.WAITING_FOR_CI, "abc123"
+        self.store.save(job)
+        self.assertEqual(1, self.workflow.record_ci_result("demo-org/demo-repo", "abc123", "success"))
+        self.assertEqual(JobStatus.COMPLETED, self.store.get("delivery-1").status)
+
+    def test_failed_ci_requires_human_review(self) -> None:
+        self.workflow.receive_issue_label(self.issue)
+        job = self.store.get("delivery-1")
+        job.status, job.commit_sha = JobStatus.WAITING_FOR_CI, "abc123"
+        self.store.save(job)
+        self.workflow.record_ci_result("demo-org/demo-repo", "abc123", "failure")
+        self.assertEqual(JobStatus.NEEDS_HUMAN_HELP, self.store.get("delivery-1").status)

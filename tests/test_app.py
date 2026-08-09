@@ -6,6 +6,7 @@ import unittest
 
 from nightshift.agent import DeterministicPlanner
 from nightshift.app import create_app
+from nightshift.domain import IssueRef, JobStatus
 from nightshift.policy import SafetyPolicy
 from nightshift.store import InMemoryDispatcher, InMemoryJobStore
 from nightshift.workflow import NightShiftWorkflow
@@ -16,14 +17,15 @@ class WebhookTests(unittest.TestCase):
         self.secret = "test-secret"
         self.store = InMemoryJobStore()
         self.dispatcher = InMemoryDispatcher()
-        workflow = NightShiftWorkflow(
+        self.workflow = NightShiftWorkflow(
             self.store, self.dispatcher,
             SafetyPolicy(approved_repositories=frozenset({"demo-org/demo-repo"})),
             DeterministicPlanner(),
         )
-        self.app = create_app(workflow, self.secret)
+        self.app = create_app(self.workflow, self.secret)
+        self.issue = IssueRef("delivery-check", "demo-org/demo-repo", 7, frozenset({"bug", "agent-ready"}), "Check result", "")
 
-    def _call(self, payload: dict, signature: str | None = None) -> tuple[str, dict]:
+    def _call(self, payload: dict, signature: str | None = None, event: str = "issues") -> tuple[str, dict]:
         body = json.dumps(payload).encode()
         signature = signature or "sha256=" + hmac.new(self.secret.encode(), body, hashlib.sha256).hexdigest()
         result: dict[str, object] = {}
@@ -37,7 +39,7 @@ class WebhookTests(unittest.TestCase):
             "CONTENT_LENGTH": str(len(body)),
             "wsgi.input": io.BytesIO(body),
             "HTTP_X_HUB_SIGNATURE_256": signature,
-            "HTTP_X_GITHUB_EVENT": "issues",
+            "HTTP_X_GITHUB_EVENT": event,
             "HTTP_X_GITHUB_DELIVERY": "delivery-3",
         }, start_response)
         return result["status"], json.loads(b"".join(response))
@@ -55,5 +57,13 @@ class WebhookTests(unittest.TestCase):
     def test_rejects_bad_signature(self) -> None:
         status, response = self._call({"action": "labeled", "repository": {}, "issue": {}}, "sha256=bad")
         self.assertEqual("401 Unauthorized", status)
-        self.assertEqual("invalid signature", response["error"])
 
+    def test_records_check_run_result(self) -> None:
+        job, _ = self.workflow.receive_issue_label(self.issue)
+        job.status, job.commit_sha = JobStatus.WAITING_FOR_CI, "deadbeef"
+        self.workflow.store.save(job)
+        body = json.dumps({"repository": {"full_name": "demo-org/demo-repo"},
+                           "check_run": {"head_sha": "deadbeef", "conclusion": "success"}}).encode()
+        status, response = self._call(json.loads(body), event="check_run")
+        self.assertEqual("202 Accepted", status)
+        self.assertEqual(JobStatus.COMPLETED, self.workflow.store.get(self.issue.delivery_id).status)

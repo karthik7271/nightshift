@@ -7,7 +7,7 @@ import os
 from typing import Callable
 from wsgiref.simple_server import make_server
 
-from .agent import DeterministicPlanner
+from .agent import DeterministicPlanner, GeminiPlanner
 from .domain import IssueRef
 from .policy import SafetyPolicy
 from .store import InMemoryDispatcher, InMemoryJobStore
@@ -28,12 +28,12 @@ def make_workflow() -> NightShiftWorkflow:
         project = os.environ["GOOGLE_CLOUD_PROJECT"]
         policy = SafetyPolicy(approved_repositories=frozenset({repository}))
         authenticator = GitHubAppAuthenticator(os.environ["GITHUB_APP_CLIENT_ID"], os.environ["GITHUB_APP_PRIVATE_KEY_PATH"])
-        executor = GitHubPatchExecutor(policy, GeminiPatchAuthor(project),
-            lambda repo, installation: GitHubRepositoryWorkspace(repo, installation, authenticator))
+        workspace_factory = lambda repo, installation: GitHubRepositoryWorkspace(repo, installation, authenticator)
+        executor = GitHubPatchExecutor(policy, GeminiPatchAuthor(project), workspace_factory)
         return NightShiftWorkflow(
             store=FirestoreJobStore(firestore.Client(project=project)),
             dispatcher=PubSubDispatcher(pubsub_v1.PublisherClient(), f"projects/{project}/topics/nightshift-jobs"),
-            policy=policy, planner=DeterministicPlanner(), executor=executor,
+            policy=policy, planner=GeminiPlanner(project, workspace_factory), executor=executor,
         )
     return NightShiftWorkflow(
         store=InMemoryJobStore(),
@@ -55,7 +55,8 @@ def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
         if environ.get("PATH_INFO") == "/api/jobs" and environ.get("REQUEST_METHOD") == "GET":
             jobs = getattr(workflow.store, "recent", lambda: [])()
             payload = [{"id": j.id, "issue": j.issue_title, "number": j.issue_number,
-                        "status": j.status, "branch": j.branch_name, "events": j.audit_events} for j in jobs]
+                        "status": j.status, "branch": j.branch_name, "pr_url": j.pr_url,
+                        "events": j.audit_events} for j in jobs]
             start_response("200 OK", [("Content-Type", "application/json")])
             return [json.dumps(payload, default=str).encode()]
         if environ.get("PATH_INFO") == "/" and environ.get("REQUEST_METHOD") == "GET":
@@ -78,10 +79,18 @@ def create_app(workflow: NightShiftWorkflow, secret: str) -> Callable:
         if not _valid_signature(secret, body, environ.get("HTTP_X_HUB_SIGNATURE_256")):
             start_response("401 Unauthorized", [("Content-Type", "application/json")])
             return [b'{"error":"invalid signature"}']
-        if environ.get("HTTP_X_GITHUB_EVENT") != "issues":
+        event = environ.get("HTTP_X_GITHUB_EVENT")
+        payload = json.loads(body)
+        if event == "check_run":
+            check_run = payload.get("check_run", {})
+            matched = workflow.record_ci_result(
+                payload["repository"]["full_name"], str(check_run.get("head_sha", "")), check_run.get("conclusion"),
+            )
+            start_response("202 Accepted", [("Content-Type", "application/json")])
+            return [json.dumps({"status": "ci_recorded", "matched_jobs": matched}).encode()]
+        if event != "issues":
             start_response("202 Accepted", [("Content-Type", "application/json")])
             return [b'{"status":"ignored"}']
-        payload = json.loads(body)
         if payload.get("action") != "labeled":
             start_response("202 Accepted", [("Content-Type", "application/json")])
             return [b'{"status":"ignored"}']

@@ -65,6 +65,9 @@ class Job:
     installation_id: int | None = None
     status: JobStatus = JobStatus.RECEIVED
     branch_name: str | None = None
+    commit_sha: str | None = None
+    pr_number: int | None = None
+    pr_url: str | None = None
     attempt: int = 0
     policy_reason: str | None = None
     plan: PatchPlan | None = None

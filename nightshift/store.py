@@ -22,6 +22,9 @@ class InMemoryJobStore:
     def get(self, job_id: str) -> Job | None:
         return self.jobs.get(job_id)
 
+    def find_by_commit_sha(self, repository: str, commit_sha: str) -> list[Job]:
+        return [job for job in self.jobs.values() if job.repository == repository and job.commit_sha == commit_sha]
+
     def recent(self, limit: int = 20) -> list[Job]:
         return list(self.jobs.values())[-limit:]
 

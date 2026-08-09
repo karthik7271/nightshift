@@ -26,3 +26,4 @@ class ExecutionTests(unittest.TestCase):
         issue = IssueRef("d", "o/r", 1, frozenset({"bug","agent-ready"}), "Fix", "", 2)
         self.assertEqual(JobStatus.WAITING_FOR_CI, executor.execute(issue, job).status)
         self.assertTrue(workspace.created and workspace.writes and workspace.pr)
+        self.assertEqual("https://example/pr/8", job.pr_url)

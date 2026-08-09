@@ -38,8 +38,9 @@ class GitHubPatchExecutor:
             return job
         workspace.create_branch(job.branch_name)
         for change in changes:
-            workspace.upsert_file(job.branch_name, change.path, change.content, f"fix: #{issue.issue_number} {issue.title}")
+            job.commit_sha = workspace.upsert_file(job.branch_name, change.path, change.content, f"fix: #{issue.issue_number} {issue.title}")
         pr = workspace.open_draft_pr(job.branch_name, f"Fix #{issue.issue_number}: {issue.title}", self._pr_body(job))
+        job.pr_number, job.pr_url = pr.number, pr.url
         job.status = JobStatus.WAITING_FOR_CI
         job.record("draft_pr_opened", number=pr.number, url=pr.url, changed_files=list(proposed_paths))
         return job

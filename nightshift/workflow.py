@@ -60,7 +60,13 @@ class NightShiftWorkflow:
         job.status = JobStatus.GATHERING_CONTEXT
         job.record("context_gathering_started")
         job.status = JobStatus.PLANNING
-        plan = self.planner.plan(issue.repository, issue.issue_number, issue.title, issue.body)
+        try:
+            plan = self.planner.plan(issue)
+        except (RuntimeError, ValueError) as error:
+            job.status, job.policy_reason = JobStatus.NEEDS_HUMAN_HELP, str(error)
+            job.record("planning_blocked", reason=str(error))
+            self.store.save(job)
+            return job
         job.plan = plan
         job.record("plan_created", expected_files=list(plan.expected_files), confidence=plan.confidence)
         decision = self.policy.validate_plan(plan)
@@ -76,3 +82,21 @@ class NightShiftWorkflow:
                 job = self.executor.execute(issue, job)
         self.store.save(job)
         return job
+
+    def record_ci_result(self, repository: str, commit_sha: str, conclusion: str | None) -> int:
+        """Attach a GitHub check result to the matching draft PR job; never merge it."""
+        jobs = self.store.find_by_commit_sha(repository, commit_sha)
+        for job in jobs:
+            if job.status != JobStatus.WAITING_FOR_CI:
+                continue
+            if conclusion == "success":
+                job.status = JobStatus.COMPLETED
+                job.record("ci_passed", commit_sha=commit_sha)
+            elif conclusion in {"failure", "cancelled", "timed_out", "action_required", "stale"}:
+                job.status = JobStatus.NEEDS_HUMAN_HELP
+                job.policy_reason = f"CI concluded {conclusion}; human review required."
+                job.record("ci_failed", commit_sha=commit_sha, conclusion=conclusion)
+            else:
+                job.record("ci_in_progress", commit_sha=commit_sha, conclusion=conclusion or "pending")
+            self.store.save(job)
+        return len(jobs)

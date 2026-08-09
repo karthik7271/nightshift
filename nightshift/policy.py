@@ -10,7 +10,7 @@ from .domain import IssueRef, PatchPlan, PolicyDecision
 class SafetyPolicy:
     approved_repositories: frozenset[str]
     required_labels: frozenset[str] = frozenset({"agent-ready", "bug"})
-    allowed_roots: tuple[str, ...] = ("src/", "tests/")
+    allowed_roots: tuple[str, ...] = ("nightshift/", "tests/", "src/")
     forbidden_names: frozenset[str] = frozenset({
         "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
         "Dockerfile", "docker-compose.yml", ".github", "terraform", "infra",
@@ -50,4 +50,3 @@ class SafetyPolicy:
         if any(token in path.lower() for token in ("auth", "secret", "credential", "migration")):
             return PolicyDecision(False, f"Sensitive path requires human review: {path}.")
         return PolicyDecision(True, "Path is allowed.")
-

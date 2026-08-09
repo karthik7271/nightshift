@@ -74,6 +74,12 @@ class GitHubRepositoryWorkspace:
             sha=str(response["sha"]),
         )
 
+    def list_files(self, limit: int = 80) -> tuple[str, ...]:
+        """Return a bounded, file-only view of the base branch for planning."""
+        response = self._request("GET", f"/repos/{self.repository}/git/trees/{quote(self.base_branch, safe='')}?recursive=1")
+        paths = [str(item["path"]) for item in response.get("tree", []) if item.get("type") == "blob"]
+        return tuple(paths[:limit])
+
     def create_branch(self, branch: str) -> str:
         if not branch.startswith("nightshift/"):
             raise ValueError("NightShift may only create branches with the nightshift/ prefix.")
